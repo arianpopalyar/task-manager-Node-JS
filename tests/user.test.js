@@ -1,54 +1,40 @@
 const request = require('supertest')
-const jwt = require('jsonwebtoken')
-const mongoose = require('mongoose')
 const app = require('../src/app')
 const User = require('../src/models/user')
+const { userOneId, userOne, setupDatabase} = require('./fixtures/db')
 
-const userOneId = new mongoose.Types.ObjectId()
-const userOne = {
-    name:'Mike',
-    email:'mike@example.com',
-    password:'56what**',
-    tokens: [{
-        token: jwt.sign({_id: userOneId}, process.env.JWT_SECRET)
-    }]
-}
-
-beforeEach(async ()=>{
-    await User.deleteMany()
-    await new User(userOne).save()
-})
+beforeEach(setupDatabase)
 
 test('Should signup a new user', async () => {
     const response = await request(app).post('/users').send({
-        name:'Andrew2',
-        Email:'andrew2@example.com',
-        password:'2Mypass77!!'
+        name: 'Andrew',
+        email: 'andrew@example.com',
+        password: 'MyPass777!'
     }).expect(201)
 
-    //Assert that the database was changed correctly
+    // Assert that the database was changed correctly
     const user = await User.findById(response.body.user._id)
     expect(user).not.toBeNull()
 
     // Assertions about the response
-    expect(response.body.user.name).toMatchObject({
-        user:{
-            name:'Mike',
-        email:'mike@example.com'
+    expect(response.body).toMatchObject({
+        user: {
+            name: 'Andrew',
+            email: 'andrew@example.com'
         },
         token: user.tokens[0].token
     })
-    expect(luser.password).not.toBe('56what**')
+    expect(user.password).not.toBe('MyPass777!')
 })
 
 
 test('Should login existing user', async () =>{
     const response = await request(app).post('/users/login').send({
-        email:'userOne.email',
-        password:'userOne.password'
+        email:userOne.email,
+        password:userOne.password
     }).expect(200)
     const user = await User.findById(userOneId)
-    expect(response.body.token).toBe(user.token[1].token)
+    expect(response.body.token).toBe(user.tokens[1].token)
 })
 
 test('non-existing user should not login', async () =>{
@@ -115,7 +101,7 @@ test('should update valid user fielfs', async()=>{
 test('Should not update invalid fields', async()=> {
     await request(app)
     .patch('/users/me')
-    .set('Authorization', `Bearer ${userOne.Tokens[0].token}`)
+    .set('Authorization', `Bearer ${userOne.tokens[0].token}`)
     .send({
         location: 'Phildephia'
     })
